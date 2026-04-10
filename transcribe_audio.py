@@ -1,1 +1,26 @@
-import argparse\nimport os\nimport torch\nfrom transformers import WhisperForConditionalGeneration, WhisperProcessor\n\n# Load the finetuned Whisper model and processor\nmodel = WhisperForConditionalGeneration.from_pretrained('path/to/your/finetuned/model')\nprocessor = WhisperProcessor.from_pretrained('path/to/your/finetuned/model')\n\ndef transcribe_audio(file_path):\n    # Load audio file\n    audio_input = processor(file_path, return_tensors='pt', sampling_rate=16000)\n\n    # Generate transcription\n    with torch.no_grad():\n        predicted_ids = model.generate(audio_input['input_values'])\n\n    # Decode transcription\n    transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)\n    return transcription[0]\n\nif __name__ == '__main__':\n    parser = argparse.ArgumentParser(description='Transcribe audio files using finetuned Whisper model.')\n    parser.add_argument('file', type=str, help='Path to audio file (MP3, WAV, OGG)')\n    args = parser.parse_args()\n\n    if os.path.exists(args.file):\n        transcription = transcribe_audio(args.file)\n        print('Transcription:', transcription)\n    else:\n        print('File does not exist.')
+import whisper
+import os
+from pydub import AudioSegment
+
+def transcribe_audio(file_path, language='en', model='base'):
+    # Load audio file in specified format
+    try:
+        audio = AudioSegment.from_file(file_path)
+        audio.export("temp.wav", format='wav')
+        file_path = "temp.wav"
+    except Exception as e:
+        print(f"Error loading audio file: {e}")
+        return None
+
+    # Load Whisper model
+    model = whisper.load_model(model)
+
+    # Transcribe audio
+    result = model.transcribe(file_path, language=language)
+
+    # Output transcription
+    output_file = os.path.splitext(file_path)[0] + '_transcription.txt'
+    with open(output_file, 'w') as f:
+        f.write(result['text'])
+
+    print(f'Transcription completed. Output saved to: {output_file}')
